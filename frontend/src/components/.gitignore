@@ -1,0 +1,115 @@
+# ==========================================
+# 1. DEPENDENCY MANAGERS & PACKAGES
+# ==========================================
+# Node.js / JavaScript packages
+node_modules/
+jspm_packages/
+.pnp
+.pnp.js
+
+# Python dependencies
+venv/
+.venv/
+env/
+ENV/
+bin/
+include/
+lib/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+
+# Ruby / Bundler
+/vendor/bundle/
+.bundle/
+
+# Composer (PHP)
+/vendor/
+
+# ==========================================
+# 2. LOCAL ENVIRONMENT & SECRET KEYS (CRITICAL)
+# ==========================================
+# Sensitive API tokens, passwords, and private parameters
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env.[pk]
+*.key
+*.pem
+*.cert
+credentials.json
+
+# Serverless secrets
+.serverless/
+
+# ==========================================
+# 3. BUILD, COMPILE, & DISTRIBUTION TARGETS
+# ==========================================
+# Production application builds
+dist/
+build/
+out/
+.next/
+.nuxt/
+.docusaurus/
+.cache/
+
+# Java / Compiled classes
+*.class
+*.jar
+*.war
+
+# Rust build target
+target/
+
+# ==========================================
+# 4. SYSTEM & APPLICATION LOGS
+# ==========================================
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Runtime diagnostic reports
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# ==========================================
+# 5. OS / IDE CONFIGURATIONS (LOCAL SETUP)
+# ==========================================
+# macOS System Files
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows System Files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Visual Studio Code workspaces
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/settings.json
+
+# JetBrains IDEs (WebStorm, IntelliJ, PyCharm, etc.)
+.idea/
+
+# ==========================================
+# 6. TESTING & COVERAGE SCOPES
+# ==========================================
+/coverage/
+.nyc_output/
+.jest/
+.cypress/
