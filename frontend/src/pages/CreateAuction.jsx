@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Upload, X, ImageIcon } from 'lucide-react'
+import { X, ImageIcon } from 'lucide-react'
 import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
 import Card from '../components/ui/Card'
@@ -32,7 +32,14 @@ function CreateAuction() {
     )
   }
 
+  // Updates form parameters while clearing the persistent error banner
+  const updateField = (field, value) => {
+    if (error) setError('')
+    setForm(prev => ({ ...prev, [field]: value }))
+  }
+
   const handleImageChange = (e) => {
+    if (error) setError('')
     const files = Array.from(e.target.files)
     if (files.length + images.length > 5) {
       alert('Maximum 5 images allowed')
@@ -66,19 +73,38 @@ function CreateAuction() {
     setLoading(true)
     setError('')
 
+    // Client-side date check to avoid throwing standard JS execution errors
+    if (!form.startsAt || !form.endsAt) {
+      setError('Please fill in both start and end dates.')
+      setLoading(false)
+      return
+    }
+
     try {
-      // Upload images first (simulate - in production use S3/Cloudinary)
       setUploading(true)
       const uploadedUrls = images.map(img => img.preview) // Using base64 for MVP
       
+      // Fixed: Dual-delivery payload structure. This targets both camelCase and snake_case API specifications
       await api.post('/auctions', {
         title: form.title,
         description: form.description,
         category: form.category,
+        
+        // Price Key Safe Mapping
         reservePrice: parseFloat(form.reservePrice),
+        reserve_price: parseFloat(form.reservePrice),
+        
+        // Start Time Key Safe Mapping
         startsAt: new Date(form.startsAt).toISOString(),
+        starts_at: new Date(form.startsAt).toISOString(),
+        
+        // End Time Key Safe Mapping
         endsAt: new Date(form.endsAt).toISOString(),
-        photoUrls: uploadedUrls
+        ends_at: new Date(form.endsAt).toISOString(),
+        
+        // Image Array Key Safe Mapping
+        photoUrls: uploadedUrls,
+        photo_urls: uploadedUrls
       })
       
       alert('Auction created! Waiting for admin approval.')
@@ -108,7 +134,7 @@ function CreateAuction() {
             <Input 
               placeholder="e.g. Vintage Rolex Submariner"
               value={form.title}
-              onChange={e => setForm({...form, title: e.target.value})}
+              onChange={e => updateField('title', e.target.value)}
               required
             />
           </div>
@@ -119,7 +145,7 @@ function CreateAuction() {
               className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition min-h-[100px]"
               placeholder="Describe your item in detail..."
               value={form.description}
-              onChange={e => setForm({...form, description: e.target.value})}
+              onChange={e => updateField('description', e.target.value)}
               required
             />
           </div>
@@ -129,7 +155,7 @@ function CreateAuction() {
             <select 
               className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition"
               value={form.category}
-              onChange={e => setForm({...form, category: e.target.value})}
+              onChange={e => updateField('category', e.target.value)}
               required
             >
               <option value="">Select category</option>
@@ -152,7 +178,7 @@ function CreateAuction() {
               step="0.01"
               placeholder="Minimum acceptable price"
               value={form.reservePrice}
-              onChange={e => setForm({...form, reservePrice: e.target.value})}
+              onChange={e => updateField('reservePrice', e.target.value)}
               required
             />
           </div>
@@ -163,7 +189,7 @@ function CreateAuction() {
               <Input 
                 type="datetime-local"
                 value={form.startsAt}
-                onChange={e => setForm({...form, startsAt: e.target.value})}
+                onChange={e => updateField('startsAt', e.target.value)}
                 required
               />
             </div>
@@ -172,7 +198,7 @@ function CreateAuction() {
               <Input 
                 type="datetime-local"
                 value={form.endsAt}
-                onChange={e => setForm({...form, endsAt: e.target.value})}
+                onChange={e => updateField('endsAt', e.target.value)}
                 required
               />
             </div>
@@ -182,7 +208,6 @@ function CreateAuction() {
           <div>
             <label className="block text-sm text-gray-400 mb-2">Photos (Max 5, 5MB each)</label>
             
-            {/* Image Preview Grid */}
             {images.length > 0 && (
               <div className="grid grid-cols-3 gap-3 mb-3">
                 {images.map((img, index) => (

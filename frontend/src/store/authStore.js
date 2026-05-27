@@ -31,8 +31,18 @@ export const useAuthStore = create((set) => ({
       )
       
       const decoded = JSON.parse(jsonPayload)
+
+      // 🛑 CRITICAL FIX: Validate token lifecycle expiration timestamp
+      // JWT expiration 'exp' is measured in seconds, Date.now() is in milliseconds
+      if (decoded.exp && decoded.exp * 1000 < Date.now()) {
+        console.warn('Initialization halted: Local token footprint has expired.')
+        localStorage.removeItem('token')
+        set({ user: null, token: null, isAuthenticated: false })
+        return
+      }
+      
       set({ 
-        user: { id: decoded.userId, email: decoded.email, role: decoded.role },
+        user: { id: decoded.userId || decoded.id, email: decoded.email, role: decoded.role },
         token,
         isAuthenticated: true 
       })

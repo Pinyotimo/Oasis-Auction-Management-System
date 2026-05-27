@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { useAuthStore } from '../store/authStore' // Import your auth store path
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
@@ -7,16 +8,20 @@ const api = axios.create({
   },
 })
 
-// Add auth token to requests
+// Add auth token to requests directly from the store state
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token')
+  // 1. Get the current active token string from your store state
+  const state = useAuthStore.getState()
+  const token = state.token // Alternatively, state.user?.token depending on your store setup
+
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
+  
   return config
 })
 
-// DEBUG: Log responses (remove after fixing)
+// DEBUG: Log responses
 api.interceptors.response.use(
   (response) => {
     console.log(`[API Success] ${response.config.method?.toUpperCase()} ${response.config.url}`)
