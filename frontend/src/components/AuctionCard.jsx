@@ -130,14 +130,14 @@ function AuctionCard({ auction }) {
       }`}
     >
       <Card
-        className={`h-full flex flex-col justify-between overflow-hidden border-gray-800 bg-gray-900/40 backdrop-blur-sm transition-all duration-300 ${
+        className={`h-full flex flex-col justify-between overflow-hidden border-yellow-800 bg-blue-900/40 backdrop-blur-sm transition-all duration-300 ${
           !isEnded
-            ? 'hover:border-blue-500/40 hover:shadow-xl hover:shadow-blue-500/5'
+            ? 'hover:border-blue-500/40 hover:shadow-xl hover:shadow-aqua-500/5'
             : 'bg-gray-950/20'
         }`}
       >
         {/* IMAGE */}
-        <div className="relative h-48 w-full overflow-hidden bg-gray-950 flex-shrink-0">
+        <div className="relative h-48 w-full overflow-hidden bg-pink-950 flex-shrink-0">
           <img
             src={
               auction.image ||
@@ -210,7 +210,7 @@ function AuctionCard({ auction }) {
               {auction.title}
             </h3>
 
-            <p className="text-gray-400 text-sm mt-1.5 mb-5 line-clamp-2 leading-relaxed font-normal">
+            <p className="text-yellow-400 text-sm mt-1.5 mb-5 line-clamp-2 leading-relaxed font-sans">
               {auction.description}
             </p>
           </div>
@@ -219,7 +219,7 @@ function AuctionCard({ auction }) {
           <div className="flex items-end justify-between pt-3.5 border-t border-gray-800/80">
             {/* PRICE */}
             <div>
-              <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+              <p className="text-[8px] font-bold text-yellow-700 uppercase tracking-wider">
                 {bidLabel}
               </p>
 

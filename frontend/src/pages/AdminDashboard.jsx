@@ -177,9 +177,8 @@ function AdminDashboard() {
     } finally {
       if (isInitialFetch) setLoading(false)
     }
-  }, []) // ← empty deps: fetchData reference never changes
+  }, [])
 
-  // FIXED: removed fetchData from deps — only re-run on actual auth changes
   useEffect(() => {
     if (!isAuthenticated) {
       navigate('/login')
@@ -190,7 +189,7 @@ function AdminDashboard() {
       return
     }
     fetchData(true)
-  }, [isAuthenticated, user?.role]) // ← stable deps only
+  }, [isAuthenticated, user?.role])
 
   const handleApprove = async (auctionId) => {
     if (busyAuctionIds.has(auctionId)) return
@@ -239,6 +238,7 @@ function AdminDashboard() {
 
   const filteredUsers = users.filter(u =>
     u.email.toLowerCase().includes(userSearch.toLowerCase()) ||
+    u.name?.toLowerCase().includes(userSearch.toLowerCase()) ||
     u.company_name?.toLowerCase().includes(userSearch.toLowerCase())
   )
 
@@ -530,7 +530,7 @@ function AdminDashboard() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={14} />
               <Input
                 type="text"
-                placeholder="Search by email or company..."
+                placeholder="Search by name, email or company..."
                 value={userSearch}
                 onChange={(e) => { setUserSearch(e.target.value); setUserPage(1) }}
                 className="pl-10 bg-gray-950 border-gray-800 focus:border-blue-500/80 w-full rounded-xl text-xs"
@@ -544,6 +544,7 @@ function AdminDashboard() {
                 <thead>
                   <tr className="bg-gray-900/50 border-b border-gray-800 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
                     <th className="px-6 py-4">Email</th>
+                    <th className="px-6 py-4">Name</th>
                     <th className="px-6 py-4">Role</th>
                     <th className="px-6 py-4">Company</th>
                     <th className="px-6 py-4">Status</th>
@@ -556,6 +557,12 @@ function AdminDashboard() {
                     return (
                       <tr key={u.id} className="hover:bg-gray-900/20 transition-colors">
                         <td className="px-6 py-4 text-gray-200 font-semibold">{u.email}</td>
+                        
+                        {/* ← NAME COLUMN: Added missing data cell */}
+                        <td className="px-6 py-4 text-gray-300">
+                          {u.name || <span className="text-gray-600 italic">—</span>}
+                        </td>
+                        
                         <td className="px-6 py-4">
                           <Badge variant={u.role === 'admin' ? 'danger' : u.role === 'seller' ? 'warning' : 'default'} className="text-[9px] uppercase font-bold">
                             {u.role}

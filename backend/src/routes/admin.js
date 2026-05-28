@@ -47,10 +47,11 @@ router.get('/expired', async (req, res) => {
 })
 
 // GET all users
+// GET all users
 router.get('/users', async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT id, email, role, company_name, verified, created_at 
+      `SELECT id, email, name, role, company_name, verified, created_at 
        FROM users 
        ORDER BY created_at DESC`
     )
@@ -60,7 +61,6 @@ router.get('/users', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch users' })
   }
 })
-
 // POST approve auction
 router.post('/auctions/:id/approve', async (req, res) => {
   const { id } = req.params

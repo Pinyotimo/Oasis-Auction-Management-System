@@ -12,6 +12,7 @@ function Register() {
     password: '', 
     confirmPassword: '',
     role: 'buyer',
+    name: '',        // ← ADDED
     companyName: ''
   })
   const [loading, setLoading] = useState(false)
@@ -28,6 +29,11 @@ function Register() {
       return
     }
 
+    if (form.password.length < 6) {
+      setError('Password must be at least 6 characters')
+      return
+    }
+
     setLoading(true)
     
     try {
@@ -35,6 +41,7 @@ function Register() {
         email: form.email,
         password: form.password,
         role: form.role,
+        name: form.name || undefined,           // ← ADDED
         companyName: form.companyName || undefined
       })
       login(response.data.token, response.data.user)
@@ -78,19 +85,30 @@ function Register() {
             >
               <option value="buyer">Buyer — I want to bid on items</option>
               <option value="seller">Seller — I want to sell items</option>
-              <option value="admin">Admin — Manage the platform</option>
             </select>
           </div>
           
           {form.role === 'seller' && (
-            <div>
-              <label className="block text-sm text-gray-400 mb-1">Company Name</label>
-              <Input 
-                placeholder="Your company or store name"
-                value={form.companyName}
-                onChange={e => setForm({...form, companyName: e.target.value})}
-              />
-            </div>
+            <>
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Full Name</label>
+                <Input 
+                  placeholder="Enter your full name"
+                  value={form.name}
+                  onChange={e => setForm({...form, name: e.target.value})}
+                  required={form.role === 'seller'}
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Company Name</label>
+                <Input 
+                  placeholder="Your company or store name"
+                  value={form.companyName}
+                  onChange={e => setForm({...form, companyName: e.target.value})}
+                  required={form.role === 'seller'}
+                />
+              </div>
+            </>
           )}
           
           <div>
@@ -101,6 +119,7 @@ function Register() {
               value={form.password}
               onChange={e => setForm({...form, password: e.target.value})}
               required
+              minLength={6}
             />
           </div>
           <div>

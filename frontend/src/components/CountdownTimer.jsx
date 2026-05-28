@@ -59,7 +59,7 @@ function CountdownTimer({ endsAt, className = '' }) {
   const { colors, display, Icon, iconClass } = layoutConfig
 
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-bold tracking-tight font-mono tabular-nums select-none transition-all duration-300 ${colors} ${className}`}>
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[5px] font-bold tracking-tight font-mono tabular-nums select-none transition-all duration-300 ${colors} ${className}`}>
       <Icon size={12} className={iconClass} />
       {display}
     </span>

@@ -1,10 +1,10 @@
 import { create } from 'zustand'
 
-export const useAuthStore = create((set) => ({
+export const useAuthStore = create((set, get) => ({
   user: null,
   token: null,
   isAuthenticated: false,
-  isReady: false, // NEW: tracks whether initAuth has completed
+  isReady: false,
 
   login: (token, user) => {
     localStorage.setItem('token', token)
@@ -17,6 +17,10 @@ export const useAuthStore = create((set) => ({
   },
 
   setUser: (user) => set({ user }),
+
+  // Get current auth state without re-rendering
+  getToken: () => get().token,
+  getUser: () => get().user,
 
   initAuth: async () => {
     const token = localStorage.getItem('token')
@@ -37,6 +41,7 @@ export const useAuthStore = create((set) => ({
 
       const decoded = JSON.parse(jsonPayload)
 
+      // Check token expiration
       if (decoded.exp && decoded.exp * 1000 < Date.now()) {
         console.warn('Token expired during init — clearing session.')
         localStorage.removeItem('token')
@@ -48,6 +53,7 @@ export const useAuthStore = create((set) => ({
         user: {
           id: decoded.userId || decoded.id,
           email: decoded.email,
+          name: decoded.name || null,
           role: decoded.role,
         },
         token,
