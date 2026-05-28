@@ -4,10 +4,10 @@ import pool from '../config/db.js'
 
 const router = express.Router()
 
-// All admin routes require admin role
+// All routes require authentication + admin role
 router.use(authenticate, requireAdmin)
 
-// Get pending auctions
+// GET pending auctions
 router.get('/pending', async (req, res) => {
   try {
     const result = await pool.query(
@@ -19,52 +19,34 @@ router.get('/pending', async (req, res) => {
     )
     res.json(result.rows)
   } catch (err) {
+    console.error('Pending auctions error:', err)
     res.status(500).json({ error: 'Failed to fetch pending auctions' })
   }
 })
 
-// Approve auction
-router.post('/auctions/:id/approve', async (req, res) => {
+// GET expired auctions
+router.get('/expired', async (req, res) => {
   try {
-    await pool.query(
-      `UPDATE auctions SET status = 'active' WHERE id = $1`,
-      [req.params.id]
+    const result = await pool.query(
+      `SELECT a.*, u.email as seller_email,
+        COALESCE(
+          (SELECT MAX(amount) FROM bids b WHERE b.auction_id = a.id),
+          a.reserve_price
+        ) as final_price
+       FROM auctions a 
+       JOIN users u ON a.seller_id = u.id 
+       WHERE a.status IN ('closed', 'completed') 
+          OR (a.status = 'active' AND a.ends_at < NOW())
+       ORDER BY a.ends_at DESC`
     )
-    
-    // Log approval
-    await pool.query(
-      `INSERT INTO auction_approvals (auction_id, admin_id, approved, reason)
-       VALUES ($1, $2, true, 'Approved by admin')`,
-      [req.params.id, req.userId]
-    )
-    
-    res.json({ message: 'Auction approved' })
+    res.json(result.rows)
   } catch (err) {
-    res.status(500).json({ error: 'Failed to approve auction' })
+    console.error('Expired auctions error:', err)
+    res.status(500).json({ error: 'Failed to fetch expired auctions' })
   }
 })
 
-// Reject auction
-router.post('/auctions/:id/reject', async (req, res) => {
-  try {
-    await pool.query(
-      `UPDATE auctions SET status = 'draft' WHERE id = $1`,
-      [req.params.id]
-    )
-    
-    await pool.query(
-      `INSERT INTO auction_approvals (auction_id, admin_id, approved, reason)
-       VALUES ($1, $2, false, $3)`,
-      [req.params.id, req.userId, req.body.reason || 'Rejected by admin']
-    )
-    
-    res.json({ message: 'Auction rejected' })
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to reject auction' })
-  }
-})
-
-// Get all users
+// GET all users
 router.get('/users', async (req, res) => {
   try {
     const result = await pool.query(
@@ -74,19 +56,67 @@ router.get('/users', async (req, res) => {
     )
     res.json(result.rows)
   } catch (err) {
+    console.error('Users error:', err)
     res.status(500).json({ error: 'Failed to fetch users' })
   }
 })
 
-// Verify user
-router.post('/users/:id/verify', async (req, res) => {
+// POST approve auction
+router.post('/auctions/:id/approve', async (req, res) => {
+  const { id } = req.params
   try {
-    await pool.query(
-      `UPDATE users SET verified = true WHERE id = $1`,
-      [req.params.id]
+    const result = await pool.query(
+      `UPDATE auctions SET status = 'active' WHERE id = $1 RETURNING *`,
+      [id]
     )
-    res.json({ message: 'User verified' })
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Auction not found' })
+    }
+    res.json({ message: 'Auction approved', auction: result.rows[0] })
   } catch (err) {
+    console.error('Approve error:', err)
+    res.status(500).json({ error: 'Failed to approve auction' })
+  }
+})
+
+// POST reject auction
+router.post('/auctions/:id/reject', async (req, res) => {
+  const { id } = req.params
+  const { reason } = req.body
+  
+  if (!reason?.trim()) {
+    return res.status(400).json({ error: 'Rejection reason required' })
+  }
+
+  try {
+    const result = await pool.query(
+      `UPDATE auctions SET status = 'rejected', rejection_reason = $1 WHERE id = $2 RETURNING *`,
+      [reason, id]
+    )
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Auction not found' })
+    }
+    res.json({ message: 'Auction rejected', auction: result.rows[0] })
+  } catch (err) {
+    console.error('Reject error:', err)
+    res.status(500).json({ error: 'Failed to reject auction' })
+  }
+})
+
+// POST verify user
+router.post('/users/:id/verify', async (req, res) => {
+  const { id } = req.params
+  try {
+    const result = await pool.query(
+      `UPDATE users SET verified = true WHERE id = $1 RETURNING *`,
+      [id]
+    )
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' })
+    }
+    res.json({ message: 'User verified', user: result.rows[0] })
+  } catch (err) {
+    console.error('Verify error:', err)
     res.status(500).json({ error: 'Failed to verify user' })
   }
 })
