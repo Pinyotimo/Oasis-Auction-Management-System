@@ -1,263 +1,156 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { Link } from 'react-router-dom'
-import {
-  Clock,
-  Gavel,
-  ArrowUpRight,
-  Lock
-} from 'lucide-react'
-
-import Card from './ui/Card'
-import Badge from './ui/Badge'
+import { Clock, Gavel, ArrowUpRight, Lock } from 'lucide-react'
 
 function AuctionCard({ auction }) {
-  // =========================
-  // LIVE TIMER
-  // =========================
-
   const calculateMsLeft = () =>
-    Math.max(
-      0,
-      new Date(auction.endsAt).getTime() - Date.now()
-    )
+    Math.max(0, new Date(auction.endsAt).getTime() - Date.now())
 
   const [msLeft, setMsLeft] = useState(calculateMsLeft)
+  const previousBid = useRef(auction.currentBid)
+  const [highlightBid, setHighlightBid] = useState(false)
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setMsLeft(calculateMsLeft())
-    }, 1000)
-
+    const interval = setInterval(() => setMsLeft(calculateMsLeft()), 1000)
     return () => clearInterval(interval)
   }, [auction.endsAt])
-
-  // =========================
-  // REALTIME BID FLASH
-  // =========================
-
-  const previousBid = useRef(auction.currentBid)
-
-  const [highlightBid, setHighlightBid] = useState(false)
 
   useEffect(() => {
     if (auction.currentBid > previousBid.current) {
       setHighlightBid(true)
-
-      const timer = setTimeout(() => {
-        setHighlightBid(false)
-      }, 1200)
-
+      const t = setTimeout(() => setHighlightBid(false), 1200)
       previousBid.current = auction.currentBid
-
-      return () => clearTimeout(timer)
+      return () => clearTimeout(t)
     }
-
     previousBid.current = auction.currentBid
   }, [auction.currentBid])
 
-  // =========================
-  // STATUS FLAGS
-  // =========================
-
   const isEnded = msLeft <= 0
-
-  const isEndingSoon =
-    msLeft > 0 && msLeft < 3600000
-
-  // =========================
-  // TIME FORMAT
-  // =========================
+  const isEndingSoon = msLeft > 0 && msLeft < 3600000
 
   const timeLeftString = useMemo(() => {
-    if (isEnded) return 'Auction Closed'
-
+    if (isEnded) return 'Auction closed'
     const days = Math.floor(msLeft / 86400000)
-
-    const hours = Math.floor(
-      (msLeft % 86400000) / 3600000
-    )
-
-    const mins = Math.floor(
-      (msLeft % 3600000) / 60000
-    )
-
-    const secs = Math.floor(
-      (msLeft % 60000) / 1000
-    )
-
-    const pad = num =>
-      String(num).padStart(2, '0')
-
-    if (days > 0) {
-      return `${days}d ${hours}h`
-    }
-
-    if (hours > 0) {
-      return `${hours}h : ${pad(mins)}m`
-    }
-
+    const hours = Math.floor((msLeft % 86400000) / 3600000)
+    const mins = Math.floor((msLeft % 3600000) / 60000)
+    const secs = Math.floor((msLeft % 60000) / 1000)
+    const pad = n => String(n).padStart(2, '0')
+    if (days > 0) return `${days}d ${hours}h`
+    if (hours > 0) return `${hours}h : ${pad(mins)}m`
     return `${pad(mins)}m : ${pad(secs)}s`
   }, [msLeft, isEnded])
 
-  // =========================
-  // FORMAT CURRENCY
-  // =========================
-
-  const formatCurrency = amount =>
+  const fmt = amount =>
     new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
-      maximumFractionDigits: 0
+      maximumFractionDigits: 0,
     }).format(amount || 0)
 
-  const bidLabel =
-    auction.bidCount > 0
-      ? 'Current Bid'
-      : 'Starting Bid'
-
-  // =========================
-  // RENDER
-  // =========================
+  const timerVariant = isEnded
+    ? 'bg-secondary text-tertiary border-tertiary'
+    : isEndingSoon
+    ? 'bg-warning/10 text-warning border-warning/20'
+    : 'bg-success/10 text-success border-success/20'
 
   return (
     <Link
       to={`/auction/${auction.id}`}
       onClick={e => isEnded && e.preventDefault()}
-      className={`block group h-full transition-all duration-300 ${
-        isEnded
-          ? 'cursor-not-allowed opacity-50 select-none'
-          : ''
-      }`}
+      className={`block group h-full ${isEnded ? 'cursor-not-allowed' : ''}`}
     >
-      <Card
-        className={`h-full flex flex-col justify-between overflow-hidden border-yellow-800 bg-blue-900/40 backdrop-blur-sm transition-all duration-300 ${
-          !isEnded
-            ? 'hover:border-blue-500/40 hover:shadow-xl hover:shadow-aqua-500/5'
-            : 'bg-gray-950/20'
+      <div
+        className={`h-full flex flex-col bg-white dark:bg-gray-900 border rounded-xl overflow-hidden transition-colors duration-150 ${
+          isEnded
+            ? 'opacity-55 border-gray-200 dark:border-gray-800'
+            : 'border-gray-200 dark:border-gray-800 hover:border-blue-400 dark:hover:border-blue-500'
         }`}
       >
-        {/* IMAGE */}
-        <div className="relative h-48 w-full overflow-hidden bg-pink-950 flex-shrink-0">
+        {/* Image */}
+        <div className="relative h-40 bg-gray-100 dark:bg-gray-800 flex items-center justify-center overflow-hidden flex-shrink-0">
           <img
-            src={
-              auction.image ||
-              'https://via.placeholder.com/400x300?text=No+Image'
-            }
+            src={auction.image || 'https://via.placeholder.com/400x240?text=No+Image'}
             alt={auction.title}
             loading="lazy"
-            onError={e => {
-              e.target.src =
-                'https://via.placeholder.com/400x300?text=No+Image'
-            }}
-            className={`w-full h-full object-cover transition-transform duration-700 ease-out ${
-              !isEnded
-                ? 'group-hover:scale-105'
-                : 'grayscale contrast-75'
+            onError={e => { e.target.src = 'https://via.placeholder.com/400x240?text=No+Image' }}
+            className={`w-full h-full object-cover transition-transform duration-500 ${
+              !isEnded ? 'group-hover:scale-[1.04]' : 'grayscale'
             }`}
           />
 
-          <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-gray-950/60 to-transparent pointer-events-none" />
+          {/* Timer badge */}
+          <span
+            className={`absolute top-2.5 right-2.5 flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-full border backdrop-blur-sm tabular-nums ${timerVariant} ${
+              isEndingSoon && !isEnded ? 'animate-pulse' : ''
+            }`}
+          >
+            {isEnded ? <Lock size={11} /> : <Clock size={11} />}
+            {timeLeftString}
+          </span>
 
-          {/* TIMER BADGE */}
-          <div className="absolute top-3 right-3 z-10 font-mono tabular-nums tracking-tight">
-            <Badge
-              variant={
-                isEnded
-                  ? 'default'
-                  : isEndingSoon
-                  ? 'danger'
-                  : 'active'
-              }
-              className={`backdrop-blur-md shadow-md py-1 px-2.5 text-[11px] font-bold uppercase transition-all ${
-                isEndingSoon && !isEnded
-                  ? 'animate-pulse'
-                  : ''
-              }`}
-            >
-              <span className="flex items-center gap-1.5">
-                {isEnded ? (
-                  <Lock
-                    size={12}
-                    className="text-gray-500"
-                  />
-                ) : (
-                  <Clock size={12} />
-                )}
-
-                {timeLeftString}
-              </span>
-            </Badge>
-          </div>
-
-          {/* HOVER CTA */}
+          {/* Hover CTA */}
           {!isEnded && (
-            <div className="absolute bottom-3 right-3 bg-blue-600 p-2 rounded-xl text-white opacity-0 scale-75 translate-y-1 group-hover:opacity-100 group-hover:scale-100 group-hover:translate-y-0 transition-all duration-300 shadow-lg shadow-blue-600/30">
-              <ArrowUpRight size={16} />
+            <div className="absolute bottom-2.5 right-2.5 bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 w-7 h-7 rounded-lg flex items-center justify-center opacity-0 scale-90 group-hover:opacity-100 group-hover:scale-100 transition-all duration-200">
+              <ArrowUpRight size={14} />
             </div>
           )}
         </div>
 
-        {/* BODY */}
-        <div className="p-5 flex flex-col flex-grow justify-between">
-          <div>
-            <h3
-              className={`font-bold text-lg text-gray-100 line-clamp-1 transition-colors duration-200 ${
-                !isEnded
-                  ? 'group-hover:text-blue-400'
-                  : 'text-gray-400'
-              }`}
-            >
-              {auction.title}
-            </h3>
+        {/* Body */}
+        <div className="p-4 flex flex-col flex-grow">
+          {/* Category pill */}
+          {auction.category && (
+            <span className="inline-block text-[10px] font-medium px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700 mb-2 w-fit">
+              {auction.category}
+            </span>
+          )}
 
-            <p className="text-yellow-400 text-sm mt-1.5 mb-5 line-clamp-2 leading-relaxed font-sans">
-              {auction.description}
-            </p>
-          </div>
+          <h3
+            className={`font-medium text-[13px] leading-snug truncate mb-1 transition-colors ${
+              isEnded
+                ? 'text-gray-400'
+                : 'text-gray-900 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400'
+            }`}
+          >
+            {auction.title}
+          </h3>
 
-          {/* FOOTER */}
-          <div className="flex items-end justify-between pt-3.5 border-t border-gray-800/80">
-            {/* PRICE */}
+          <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-relaxed line-clamp-2 mb-auto">
+            {auction.description}
+          </p>
+
+          {/* Footer */}
+          <div className="flex items-end justify-between border-t border-gray-100 dark:border-gray-800 pt-3 mt-3">
             <div>
-              <p className="text-[8px] font-bold text-yellow-700 uppercase tracking-wider">
-                {bidLabel}
+              <p className="text-[10px] text-gray-400 dark:text-gray-500 mb-0.5">
+                {auction.bidCount > 0 ? 'Current bid' : 'Starting bid'}
               </p>
-
               <p
-                className={`text-2xl font-black mt-0.5 tracking-tight transition-all duration-500 ${
+                className={`text-[18px] font-medium transition-colors duration-300 ${
                   isEnded
-                    ? 'text-gray-500 line-through font-bold'
+                    ? 'text-gray-400 line-through'
                     : highlightBid
-                    ? 'text-green-300 scale-105'
-                    : 'text-green-400'
+                    ? 'text-amber-500'
+                    : 'text-green-600 dark:text-green-400'
                 }`}
               >
-                {formatCurrency(auction.currentBid)}
+                {fmt(auction.currentBid)}
               </p>
             </div>
 
-            {/* BIDS */}
             <div
-              className={`flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg transition border ${
-                isEnded
-                  ? 'text-gray-500 border-transparent bg-gray-800/20'
-                  : auction.bidCount > 0
-                  ? 'text-blue-400 border-blue-500/10 bg-blue-500/5'
-                  : 'text-gray-400 border-gray-800 bg-gray-800/40'
+              className={`flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-lg border ${
+                auction.bidCount > 0 && !isEnded
+                  ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800'
+                  : 'text-gray-400 bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700'
               }`}
             >
-              <Gavel size={13} />
-
-              <span>
-                {auction.bidCount}{' '}
-                {auction.bidCount === 1
-                  ? 'bid'
-                  : 'bids'}
-              </span>
+              <Gavel size={12} />
+              {auction.bidCount} {auction.bidCount === 1 ? 'bid' : 'bids'}
             </div>
           </div>
         </div>
-      </Card>
+      </div>
     </Link>
   )
 }

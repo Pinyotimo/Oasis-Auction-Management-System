@@ -1,126 +1,172 @@
-import { useMemo } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
-import { Gavel, LogOut, User, PlusCircle, Shield, Store } from 'lucide-react'
+import {
+  Gavel,
+  LogOut,
+  User,
+  PlusCircle,
+  Shield,
+  Store,
+} from 'lucide-react'
+
 import { useAuthStore } from '../store/authStore'
+
+const ROLE_CONFIG = {
+  admin: {
+    icon: Shield,
+    styles:
+      'bg-amber-500/10 border-amber-500/20 text-amber-400',
+  },
+  seller: {
+    icon: Store,
+    styles:
+      'bg-purple-500/10 border-purple-500/20 text-purple-400',
+  },
+  user: {
+    icon: User,
+    styles:
+      'bg-gray-800/60 border-gray-700/50 text-gray-400',
+  },
+}
 
 function Navbar() {
   const { user, isAuthenticated, logout } = useAuthStore()
   const navigate = useNavigate()
+
+  const role = user?.role?.toLowerCase() || 'user'
+  const roleConfig = ROLE_CONFIG[role] || ROLE_CONFIG.user
+  const RoleIcon = roleConfig.icon
 
   const handleLogout = () => {
     logout()
     navigate('/')
   }
 
-  // Pure data matrix mapping role accent colors and system configurations
-  const roleBadgeConfig = useMemo(() => {
-    const role = user?.role?.toLowerCase()
-    switch (role) {
-      case 'admin':
-        return { bg: 'bg-amber-500/10 border-amber-500/20 text-amber-400', Icon: Shield }
-      case 'seller':
-        return { bg: 'bg-purple-500/10 border-purple-500/20 text-purple-400', Icon: Store }
-      default:
-        return { bg: 'bg-gray-800/60 border-gray-700/50 text-gray-400', Icon: User }
-    }
-  }, [user?.role])
-
-  // Centralized active route styling class utility
   const navLinkClasses = ({ isActive }) =>
-    `text-xs font-bold uppercase tracking-wider transition-colors duration-200 ${
-      isActive ? 'text-blue-400' : 'text-gray-400 hover:text-gray-100'
-    }`
+    `
+      relative text-xs font-bold uppercase tracking-wider transition-colors duration-200
+      ${
+        isActive
+          ? 'text-blue-400'
+          : 'text-gray-400 hover:text-white'
+      }
+    `
 
-  const RoleIcon = roleBadgeConfig.Icon
+  const actionButton =
+    'inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider transition'
 
   return (
-    <nav className="bg-gray-950/80 border-b border-gray-800/80 sticky top-0 z-50 backdrop-blur-md select-none">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+    <nav className="sticky top-0 z-50 border-b border-gray-800/80 bg-gray-950/80 backdrop-blur-md">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         
-        {/* --- BRAND ZONE --- */}
-        <Link 
-          to="/" 
-          className="flex items-center gap-2.5 text-lg font-black tracking-tight text-white group flex-shrink-0"
+        {/* BRAND */}
+        <Link
+          to="/"
+          className="group flex flex-shrink-0 items-center gap-3"
         >
-          <div className="h-9 w-9 bg-blue-600/10 border border-blue-500/20 rounded-xl flex items-center justify-center text-blue-400 group-hover:bg-blue-600 group-hover:text-white transition-all duration-300">
+          <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-blue-500/20 bg-blue-600/10 text-blue-400 transition-all duration-300 group-hover:bg-blue-600 group-hover:text-white">
             <Gavel size={18} />
           </div>
-          <span>
-            Smart<span className="text-blue-500">Auction</span>
-          </span>
+
+          <div className="leading-none">
+            <p className="text-lg font-black tracking-tight text-white">
+              Smart
+              <span className="text-blue-500">Auction</span>
+            </p>
+
+            <p className="hidden text-[10px] uppercase tracking-[0.25em] text-gray-500 sm:block">
+              Marketplace
+            </p>
+          </div>
         </Link>
-        
-        {/* --- GLOBAL APPLICATION NAVIGATION --- */}
-        <div className="hidden md:flex items-center gap-6 flex-1 max-w-xs justify-center">
+
+        {/* NAVIGATION */}
+        <div className="hidden md:flex items-center gap-8">
           <NavLink to="/" end className={navLinkClasses}>
-            Auctions Exchange
+            Auctions
           </NavLink>
+
+          {isAuthenticated && (
+            <NavLink to="/profile" className={navLinkClasses}>
+              Dashboard
+            </NavLink>
+          )}
+
+          {user?.role === 'admin' && (
+            <NavLink to="/admin" className={navLinkClasses}>
+              Admin
+            </NavLink>
+          )}
         </div>
 
-        {/* --- USER ACCOUNT PORTAL INTERFACES --- */}
-        <div className="flex items-center gap-4 sm:gap-5">
+        {/* ACTIONS */}
+        <div className="flex items-center gap-3 sm:gap-4">
           {isAuthenticated ? (
             <>
-              {/* Context Action Button: Sell Item */}
-              {(user?.role === 'seller' || user?.role === 'admin') && (
-                <Link 
-                  to="/create" 
-                  className="inline-flex items-center gap-1.5 text-gray-400 hover:text-white transition text-xs font-bold uppercase tracking-wider"
+              {/* CREATE */}
+              {(role === 'seller' || role === 'admin') && (
+                <Link
+                  to="/create"
+                  className={`${actionButton} rounded-xl px-3 py-2 text-gray-300 hover:bg-blue-500/10 hover:text-white`}
                 >
-                  <PlusCircle size={14} className="text-blue-500" />
-                  <span className="hidden sm:inline">Sell Asset</span>
+                  <PlusCircle
+                    size={15}
+                    className="text-blue-500"
+                  />
+
+                  <span className="hidden sm:inline">
+                    Sell Item
+                  </span>
                 </Link>
               )}
 
-              {/* Administrative Node Option */}
-              {user?.role === 'admin' && (
-                <Link 
-                  to="/admin" 
-                  className="text-xs font-bold uppercase tracking-wider text-amber-400 hover:text-amber-300 transition"
-                >
-                  Console
-                </Link>
-              )}
-
-              <NavLink to="/profile" className={navLinkClasses}>
-                Dashboard
-              </NavLink>
-
-              <div className="hidden lg:flex items-center gap-2.5 border-l border-gray-800 pl-5">
-                <div className="text-right">
-                  <p className="text-[11px] font-bold text-gray-300 tracking-tight leading-none max-w-[140px] truncate">
+              {/* USER INFO */}
+              <div className="hidden items-center gap-3 border-l border-gray-800 pl-4 lg:flex">
+                <div className="max-w-[160px] text-right">
+                  <p className="truncate text-xs font-semibold text-gray-200">
                     {user?.email}
                   </p>
+
+                  <p className="text-[10px] uppercase tracking-wider text-gray-500">
+                    Signed In
+                  </p>
                 </div>
-                <span className={`inline-flex items-center gap-1 text-[10px] font-bold border px-2 py-0.5 rounded-md ${roleBadgeConfig.bg}`}>
+
+                <span
+                  className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[10px] font-bold uppercase tracking-wide ${roleConfig.styles}`}
+                >
                   <RoleIcon size={10} />
-                  {user?.role}
+                  {role}
                 </span>
               </div>
-              
-              <button 
+
+              {/* LOGOUT */}
+              <button
                 onClick={handleLogout}
-                className="inline-flex items-center gap-1.5 text-gray-500 hover:text-red-400 transition text-xs font-bold uppercase tracking-wider border border-transparent hover:border-red-500/10 hover:bg-red-500/5 px-2.5 py-1.5 rounded-xl"
+                className={`${actionButton} rounded-xl border border-transparent px-3 py-2 text-gray-400 hover:border-red-500/20 hover:bg-red-500/10 hover:text-red-400`}
               >
-                <LogOut size={14} />
-                <span className="hidden sm:inline">Logout</span>
+                <LogOut size={15} />
+
+                <span className="hidden sm:inline">
+                  Logout
+                </span>
               </button>
             </>
           ) : (
-            <div className="flex items-center gap-3">
-              <Link 
-                to="/login" 
-                className="text-xs font-bold uppercase tracking-wider text-gray-400 hover:text-white transition px-3 py-1.5"
+            <>
+              <Link
+                to="/login"
+                className="rounded-xl px-3 py-2 text-xs font-bold uppercase tracking-wider text-gray-400 transition hover:text-white"
               >
                 Login
               </Link>
-              <Link 
-                to="/register" 
-                className="bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs uppercase tracking-wider px-4 py-2.5 rounded-xl transition shadow-lg shadow-blue-600/10"
+
+              <Link
+                to="/register"
+                className="rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-white shadow-lg shadow-blue-600/10 transition hover:bg-blue-500"
               >
                 Get Started
               </Link>
-            </div>
+            </>
           )}
         </div>
       </div>

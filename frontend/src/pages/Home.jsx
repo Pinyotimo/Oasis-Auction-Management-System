@@ -1,29 +1,18 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { io } from 'socket.io-client'
-import {
-  Search,
-  SlidersHorizontal,
-  Flame,
-  Sparkles,
-  HelpCircle,
-  Wifi,
-  WifiOff
-} from 'lucide-react'
-
+import { Search, SlidersHorizontal, Flame, Sparkles, HelpCircle, Wifi, WifiOff } from 'lucide-react'
 import AuctionCard from '../components/AuctionCard'
 import Input from '../components/ui/Input'
-import Card from '../components/ui/Card'
 import api from '../lib/api'
 
 const SOCKET_URL = import.meta.env.VITE_WS_URL || 'http://localhost:5000'
-
 const PAGE_SIZE = 12
 const ONE_DAY_MS = 86400000
 
 const FILTER_TABS = [
-  { id: 'all', label: 'All Catalog' },
+  { id: 'all', label: 'All catalog' },
   { id: 'active', label: 'Live' },
-  { id: 'ending-soon', label: 'Ending Soon' }
+  { id: 'ending-soon', label: 'Ending soon' },
 ]
 
 function Home() {
@@ -35,17 +24,13 @@ function Home() {
 
   const [searchQuery, setSearchQuery] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
-
   const [filterTab, setFilterTab] = useState('all')
   const [sortBy, setSortBy] = useState('newest')
   const [page, setPage] = useState(1)
 
-  // Live clock update every minute
+  // Live clock — updates every minute for isActive/isEndingSoon flags
   useEffect(() => {
-    const interval = setInterval(() => {
-      setNow(Date.now())
-    }, 60000)
-
+    const interval = setInterval(() => setNow(Date.now()), 60000)
     return () => clearInterval(interval)
   }, [])
 
@@ -53,44 +38,26 @@ function Home() {
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchQuery.trim().toLowerCase())
+      setPage(1)
     }, 300)
-
     return () => clearTimeout(timer)
   }, [searchQuery])
 
   // Fetch auctions
   const fetchAuctionsData = useCallback(async (isInitialFetch = false) => {
-    const controller = new AbortController()
-
     try {
-      if (isInitialFetch) {
-        setLoading(true)
-      }
-
-      const response = await api.get('/auctions', {
-        signal: controller.signal
-      })
-
+      if (isInitialFetch) setLoading(true)
+      const response = await api.get('/auctions')
       setAuctions(response.data || [])
       setError(null)
     } catch (err) {
-      if (err.name !== 'CanceledError' && err.name !== 'AbortError') {
-        console.error('Catalog sync error:', err)
-
-        if (isInitialFetch) {
-          setError('Unable to load auction catalog.')
-        }
-      }
+      console.error('Catalog sync error:', err)
+      if (isInitialFetch) setError('Unable to load auction catalog.')
     } finally {
-      if (isInitialFetch) {
-        setLoading(false)
-      }
+      if (isInitialFetch) setLoading(false)
     }
-
-    return () => controller.abort()
   }, [])
 
-  // Initial fetch
   useEffect(() => {
     fetchAuctionsData(true)
   }, [])
@@ -101,51 +68,32 @@ function Home() {
       transports: ['websocket'],
       reconnection: true,
       reconnectionAttempts: 5,
-      reconnectionDelay: 1000
+      reconnectionDelay: 1000,
     })
 
-    socket.on('connect', () => {
-      setSocketConnected(true)
-    })
+    socket.on('connect', () => setSocketConnected(true))
+    socket.on('disconnect', () => setSocketConnected(false))
 
-    socket.on('disconnect', () => {
-      setSocketConnected(false)
-    })
-
-    // Server should emit updated auction object
     socket.on('bid_placed', updatedAuction => {
       setAuctions(prev =>
-        prev.map(auction =>
-          auction.id === updatedAuction.id
-            ? {
-                ...auction,
-                ...updatedAuction
-              }
-            : auction
-        )
+        prev.map(a => a.id === updatedAuction.id ? { ...a, ...updatedAuction } : a)
       )
     })
 
-    // Optional fallback refresh event
-    socket.on('auction_refresh', () => {
-      fetchAuctionsData(false)
-    })
+    socket.on('auction_refresh', () => fetchAuctionsData(false))
 
-    return () => {
-      socket.disconnect()
-    }
+    return () => socket.disconnect()
   }, [fetchAuctionsData])
 
-  // Enhanced auctions
+  // Derived auction data with time flags
   const enhancedAuctions = useMemo(() => {
     return auctions.map(auction => {
       const endsAtMs = new Date(auction.ends_at).getTime()
       const msLeft = endsAtMs - now
-
       return {
         ...auction,
         isActive: msLeft > 0,
-        isEndingSoon: msLeft > 0 && msLeft < ONE_DAY_MS
+        isEndingSoon: msLeft > 0 && msLeft < ONE_DAY_MS,
       }
     })
   }, [auctions, now])
@@ -154,157 +102,137 @@ function Home() {
   const processedAuctions = useMemo(() => {
     let result = [...enhancedAuctions]
 
-    // Search
     if (debouncedSearch) {
-      result = result.filter(
-        auction =>
-          auction.title?.toLowerCase().includes(debouncedSearch) ||
-          auction.description?.toLowerCase().includes(debouncedSearch)
+      result = result.filter(a =>
+        a.title?.toLowerCase().includes(debouncedSearch) ||
+        a.description?.toLowerCase().includes(debouncedSearch)
       )
     }
 
-    // Filters
-    if (filterTab === 'active') {
-      result = result.filter(auction => auction.isActive)
-    }
+    if (filterTab === 'active') result = result.filter(a => a.isActive)
+    if (filterTab === 'ending-soon') result = result.filter(a => a.isEndingSoon)
 
-    if (filterTab === 'ending-soon') {
-      result = result.filter(auction => auction.isEndingSoon)
-    }
-
-    // Sorting
     result.sort((a, b) => {
-      switch (sortBy) {
-        case 'bidCount':
-          return (b.bid_count || 0) - (a.bid_count || 0)
-
-        case 'value': {
-          const valueA = parseFloat(
-            a.current_price || a.reserve_price || 0
-          )
-
-          const valueB = parseFloat(
-            b.current_price || b.reserve_price || 0
-          )
-
-          return valueB - valueA
-        }
-
-        case 'newest':
-        default:
-          return (
-            new Date(b.created_at || 0).getTime() -
-            new Date(a.created_at || 0).getTime()
-          )
+      if (sortBy === 'bidCount') return (b.bid_count || 0) - (a.bid_count || 0)
+      if (sortBy === 'value') {
+        return parseFloat(b.current_price || b.reserve_price || 0) -
+               parseFloat(a.current_price || a.reserve_price || 0)
       }
+      return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
     })
 
     return result
   }, [enhancedAuctions, debouncedSearch, filterTab, sortBy])
 
-  // Pagination
-  const paginatedAuctions = useMemo(() => {
-    return processedAuctions.slice(0, page * PAGE_SIZE)
-  }, [processedAuctions, page])
+  const paginatedAuctions = useMemo(
+    () => processedAuctions.slice(0, page * PAGE_SIZE),
+    [processedAuctions, page]
+  )
 
-  const hasMore =
-    paginatedAuctions.length < processedAuctions.length
+  const hasMore = paginatedAuctions.length < processedAuctions.length
 
-  // Loading
+  // Derived stats
+  const totalActive = useMemo(() => enhancedAuctions.filter(a => a.isActive).length, [enhancedAuctions])
+  const totalEndingSoon = useMemo(() => enhancedAuctions.filter(a => a.isEndingSoon).length, [enhancedAuctions])
+  const totalBids = useMemo(() => enhancedAuctions.reduce((sum, a) => sum + (a.bid_count || 0), 0), [enhancedAuctions])
+  const avgBid = useMemo(() => {
+    const priced = enhancedAuctions.filter(a => a.current_price || a.reserve_price)
+    if (!priced.length) return 0
+    return priced.reduce((sum, a) => sum + parseFloat(a.current_price || a.reserve_price || 0), 0) / priced.length
+  }, [enhancedAuctions])
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-96 gap-3">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500" />
-
-        <p className="text-xs text-gray-500 uppercase tracking-widest font-bold animate-pulse">
+        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-500" />
+        <p className="text-xs text-gray-500 uppercase tracking-widest font-medium animate-pulse">
           Opening trading floor catalog...
         </p>
       </div>
     )
   }
 
-  // Error
   if (error) {
     return (
       <div className="text-center py-32 max-w-sm mx-auto space-y-4">
-        <p className="text-red-400 font-bold text-sm leading-relaxed">
-          {error}
-        </p>
-
+        <p className="text-red-500 font-medium text-sm">{error}</p>
         <button
           onClick={() => fetchAuctionsData(true)}
-          className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs uppercase tracking-wider py-3 rounded-xl transition shadow-lg shadow-blue-600/10"
+          className="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium text-xs uppercase tracking-wider py-2.5 rounded-xl transition"
         >
-          Re-establish Connection
+          Re-establish connection
         </button>
       </div>
     )
   }
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto px-4 py-6">
+    <div className="space-y-6 max-w-7xl mx-auto px-4 py-6">
+
       {/* Hero */}
-      <div className="relative rounded-3xl overflow-hidden border border-gray-800/80 bg-gradient-to-br from-gray-950 via-gray-900 to-blue-950/20 p-8 sm:p-12 shadow-2xl">
+      <div className="relative rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 p-8 sm:p-12">
         <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none text-blue-400 hidden lg:block">
-          <Sparkles size={180} />
+          <Sparkles size={160} />
         </div>
 
         <div className="max-w-2xl space-y-4 relative z-10">
-          <span className="inline-flex items-center gap-1.5 bg-blue-500/10 border border-blue-500/20 px-3 py-1 rounded-full text-[10px] font-black text-blue-400 uppercase tracking-wider">
-            <Flame size={12} className="animate-pulse" />
-            Live Liquid Trading Floor
+          <span className="inline-flex items-center gap-1.5 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 px-3 py-1 rounded-full text-[11px] font-medium text-blue-600 dark:text-blue-400">
+            <Flame size={11} className="animate-pulse" aria-hidden="true" />
+            Live trading floor
           </span>
 
-          <h1 className="text-4xl sm:text-5xl font-black text-white tracking-tight leading-none">
-            Acquire Extraordinary Items In{' '}
-            <span className="text-blue-400">
-              Real-Time
-            </span>
+          <h1 className="text-4xl sm:text-5xl font-medium text-gray-900 dark:text-white tracking-tight leading-none">
+            Acquire extraordinary items in{' '}
+            <span className="text-blue-600 dark:text-blue-400">real&#8209;time</span>
           </h1>
 
-          <p className="text-gray-400 text-xs sm:text-sm leading-relaxed max-w-xl font-medium">
-            Transparent micro-bidding mechanics backed by
-            decentralized verification logs.
+          <p className="text-gray-500 dark:text-gray-400 text-sm leading-relaxed max-w-xl">
+            Transparent micro-bidding mechanics backed by decentralized verification logs.
           </p>
         </div>
       </div>
 
-      {/* Controls */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-gray-900/30 border border-gray-800/60 p-4 rounded-2xl backdrop-blur-sm">
-        {/* Search */}
-        <div className="relative flex-1 max-w-md">
-          <Search
-            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500"
-            size={14}
-          />
+      {/* Stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { label: 'Active auctions', value: totalActive, sub: `of ${enhancedAuctions.length} total` },
+          { label: 'Total bids placed', value: totalBids.toLocaleString(), sub: 'all time' },
+          { label: 'Ending soon', value: totalEndingSoon, sub: 'within 24 hours' },
+          { label: 'Avg. bid value', value: `$${Math.round(avgBid).toLocaleString()}`, sub: 'current listings' },
+        ].map(stat => (
+          <div key={stat.label} className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4">
+            <p className="text-[11px] text-gray-400 dark:text-gray-500 mb-1">{stat.label}</p>
+            <p className="text-2xl font-medium text-gray-900 dark:text-white">{stat.value}</p>
+            <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">{stat.sub}</p>
+          </div>
+        ))}
+      </div>
 
+      {/* Controls */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+        {/* Search */}
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} aria-hidden="true" />
           <Input
             type="text"
             placeholder="Search assets, lots, or vendors..."
             value={searchQuery}
-            onChange={e => {
-              setSearchQuery(e.target.value)
-              setPage(1)
-            }}
-            className="pl-10 bg-gray-950 border-gray-800/80 focus:border-blue-500/80 w-full rounded-xl text-xs placeholder-gray-600"
+            onChange={e => { setSearchQuery(e.target.value); setPage(1) }}
+            className="pl-9 w-full text-sm rounded-xl border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900"
           />
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Tabs */}
-          <div className="bg-gray-950 p-1 rounded-xl border border-gray-800 flex items-center">
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Filter tabs */}
+          <div className="flex items-center bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-1 gap-1">
             {FILTER_TABS.map(tab => (
               <button
                 key={tab.id}
-                aria-pressed={filterTab === tab.id}
-                onClick={() => {
-                  setFilterTab(tab.id)
-                  setPage(1)
-                }}
-                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                onClick={() => { setFilterTab(tab.id); setPage(1) }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                   filterTab === tab.id
-                    ? 'bg-blue-600 text-white shadow-md shadow-blue-600/10'
-                    : 'text-gray-400 hover:text-gray-200'
+                    ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
                 }`}
               >
                 {tab.label}
@@ -313,74 +241,45 @@ function Home() {
           </div>
 
           {/* Sort */}
-          <div className="flex items-center gap-2 bg-gray-950 border border-gray-800 px-3 py-1.5 rounded-xl">
-            <SlidersHorizontal
-              size={12}
-              className="text-gray-500"
-            />
-
+          <div className="flex items-center gap-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 px-3 py-2 rounded-xl">
+            <SlidersHorizontal size={12} className="text-gray-400" aria-hidden="true" />
             <select
-              aria-label="Sort auctions"
               value={sortBy}
-              onChange={e => {
-                setSortBy(e.target.value)
-                setPage(1)
-              }}
-              className="bg-transparent text-xs font-bold text-gray-300 focus:outline-none cursor-pointer pr-2 appearance-none"
+              onChange={e => { setSortBy(e.target.value); setPage(1) }}
+              className="bg-transparent text-xs font-medium text-gray-700 dark:text-gray-300 focus:outline-none cursor-pointer"
+              aria-label="Sort auctions"
             >
-              <option value="newest" className="bg-gray-950">
-                Sort: Newest
-              </option>
-
-              <option value="bidCount" className="bg-gray-950">
-                Sort: High Action
-              </option>
-
-              <option value="value" className="bg-gray-950">
-                Sort: Valuation
-              </option>
+              <option value="newest">Newest</option>
+              <option value="bidCount">High action</option>
+              <option value="value">Valuation</option>
             </select>
           </div>
 
-          {/* Connection */}
-          <div
-            className={`flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider ${
-              socketConnected
-                ? 'text-green-400'
-                : 'text-red-400'
-            }`}
-          >
-            {socketConnected ? (
-              <Wifi size={12} />
-            ) : (
-              <WifiOff size={12} />
-            )}
-
+          {/* Socket status */}
+          <div className={`flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-2 rounded-xl border ${
+            socketConnected
+              ? 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800'
+              : 'text-gray-400 bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-800'
+          }`}>
+            {socketConnected
+              ? <Wifi size={12} aria-hidden="true" />
+              : <WifiOff size={12} aria-hidden="true" />
+            }
             {socketConnected ? 'Live' : 'Offline'}
           </div>
         </div>
       </div>
 
-      {/* Empty */}
+      {/* Grid */}
       {paginatedAuctions.length === 0 ? (
-        <Card className="border-dashed border-gray-800 p-16 text-center max-w-lg mx-auto bg-transparent">
-          <HelpCircle
-            className="mx-auto text-gray-700 mb-3"
-            size={28}
-          />
-
-          <p className="text-gray-400 font-bold text-sm">
-            No Auctions Found
-          </p>
-
-          <p className="text-gray-500 text-xs mt-1 leading-relaxed">
-            Try changing your filters or search terms.
-          </p>
-        </Card>
+        <div className="text-center py-20 max-w-sm mx-auto space-y-2">
+          <HelpCircle className="mx-auto text-gray-300 dark:text-gray-700" size={28} aria-hidden="true" />
+          <p className="text-gray-500 font-medium text-sm">No auctions found</p>
+          <p className="text-gray-400 text-xs">Try changing your filters or search terms.</p>
+        </div>
       ) : (
         <>
-          {/* Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
             {paginatedAuctions.map(auction => (
               <AuctionCard
                 key={auction.id}
@@ -388,31 +287,24 @@ function Home() {
                   id: auction.id,
                   title: auction.title,
                   description: auction.description,
-                  currentBid: parseFloat(
-                    auction.current_price ||
-                      auction.reserve_price ||
-                      0
-                  ),
+                  category: auction.category,
+                  currentBid: parseFloat(auction.current_price || auction.reserve_price || 0),
                   bidCount: auction.bid_count || 0,
                   endsAt: auction.ends_at,
                   image: auction.photo_urls?.[0],
-                  status: auction.status
+                  status: auction.status,
                 }}
               />
             ))}
           </div>
 
-          {/* Load More */}
           {hasMore && (
-            <div className="text-center pt-4">
+            <div className="text-center pt-2">
               <button
                 onClick={() => setPage(prev => prev + 1)}
-                className="bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold text-xs uppercase tracking-wider px-6 py-2.5 rounded-xl transition border border-gray-700"
+                className="bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 font-medium text-xs uppercase tracking-wider px-6 py-2.5 rounded-xl transition border border-gray-200 dark:border-gray-700"
               >
-                Load More (
-                {processedAuctions.length -
-                  paginatedAuctions.length}{' '}
-                remaining)
+                Load more ({processedAuctions.length - paginatedAuctions.length} remaining)
               </button>
             </div>
           )}
