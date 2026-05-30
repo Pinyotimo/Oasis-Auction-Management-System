@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { Clock, Gavel, ArrowUpRight, Lock } from 'lucide-react'
+import { formatKES } from '../lib/currency'
 
 function AuctionCard({ auction }) {
   const calculateMsLeft = () =>
@@ -40,12 +41,7 @@ function AuctionCard({ auction }) {
     return `${pad(mins)}m : ${pad(secs)}s`
   }, [msLeft, isEnded])
 
-  const fmt = amount =>
-    new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      maximumFractionDigits: 0,
-    }).format(amount || 0)
+  const fmt = formatKES
 
   const timerVariant = isEnded
     ? 'bg-secondary text-tertiary border-tertiary'

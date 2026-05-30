@@ -1,11 +1,30 @@
 import { createClient } from 'redis'
 
-const client = createClient({
-  url: process.env.REDIS_URL || 'redis://localhost:6379'
-})
+const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379'
 
-client.on('error', (err) => console.error('Redis error:', err))
+const socketOptions = { reconnectStrategy: () => false }
+const client = createClient({ url: redisUrl, socket: socketOptions })
+const pubClient = createClient({ url: redisUrl, socket: socketOptions })
+const subClient = createClient({ url: redisUrl, socket: socketOptions })
 
-await client.connect()
+const onError = (name) => (err) => console.error(`${name} Redis error:`, err)
+client.on('error', onError('client'))
+pubClient.on('error', onError('pubClient'))
+subClient.on('error', onError('subClient'))
+
+let redisAvailable = false
+
+try {
+  await Promise.all([
+    client.connect(),
+    pubClient.connect(),
+    subClient.connect(),
+  ])
+  redisAvailable = true
+  console.log('Redis connected:', redisUrl)
+} catch (err) {
+  console.error('Redis unavailable, continuing without Redis adapter:', err)
+}
 
 export default client
+export { pubClient, subClient, redisAvailable }

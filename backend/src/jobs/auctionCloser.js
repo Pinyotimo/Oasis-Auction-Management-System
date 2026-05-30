@@ -1,11 +1,11 @@
 import cron from 'node-cron'
 import pool from '../config/db.js'
 
-export function startAuctionCloser() {
+export function startAuctionCloser(io) {
   // Run every minute
   cron.schedule('* * * * *', async () => {
     console.log('[' + new Date().toISOString() + '] Checking expired auctions...')
-    
+
     try {
       const expired = await pool.query(
         `SELECT id, reserve_price, seller_id 
@@ -39,6 +39,10 @@ export function startAuctionCloser() {
           )
           console.log(`✓ Auction ${auction.id} closed with no bids`)
         }
+      }
+
+      if (expired.rows.length > 0 && io) {
+        io.emit('auction_refresh')
       }
     } catch (err) {
       console.error('Auction closer error:', err)

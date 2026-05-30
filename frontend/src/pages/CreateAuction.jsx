@@ -171,7 +171,7 @@ function CreateAuction() {
           </div>
           
           <div>
-            <label className="block text-sm text-gray-400 mb-1">Reserve Price ($) *</label>
+            <label className="block text-sm text-gray-400 mb-1">Reserve Price (KES) *</label>
             <Input 
               type="number"
               min="1"

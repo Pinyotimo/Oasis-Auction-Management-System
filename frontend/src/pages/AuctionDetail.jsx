@@ -4,6 +4,7 @@ import { Clock, Gavel, User, ArrowLeft, AlertCircle, CheckCircle2, TrendingUp, L
 import { io } from 'socket.io-client'
 import Input from '../components/ui/Input'
 import api from '../lib/api'
+import { formatKES } from '../lib/currency'
 import { useAuthStore } from '../store/authStore'
 
 function AuctionDetail() {
@@ -38,6 +39,7 @@ function AuctionDetail() {
     const socket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000')
     socket.emit('join_auction', parseInt(id))
     socket.on('bid_placed', () => fetchAuctionData(false))
+    socket.on('auction_refresh', () => fetchAuctionData(false))
 
     return () => socket.disconnect()
   }, [id, fetchAuctionData])
@@ -69,8 +71,7 @@ function AuctionDetail() {
     return `${pad(mins)}m : ${pad(secs)}s`
   }
 
-  const fmt = amount =>
-    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(amount || 0)
+  const fmt = formatKES
 
   const currentHighestBid = auction?.bids?.[0]?.amount || parseFloat(auction?.reserve_price || 0)
   const minimumRequiredBid = currentHighestBid + (auction?.bids?.length > 0 ? 100 : 0)
@@ -258,13 +259,13 @@ function AuctionDetail() {
                   <div className="flex gap-2">
                     <div className="relative flex-1">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm select-none">
-                        $
+                        KES
                       </span>
                       <Input
                         type="number"
                         step="any"
                         disabled={isSubmitting}
-                        placeholder={String(minimumRequiredBid)}
+                        placeholder={fmt(minimumRequiredBid)}
                         value={bidAmount}
                         onChange={e => setBidAmount(e.target.value)}
                         className="pl-7 w-full text-sm rounded-xl border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800"

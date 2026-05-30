@@ -233,13 +233,25 @@ router.post('/:id/bids', authenticate, async (req, res) => {
       bidder_email: bidderResult.rows[0]?.email
     }
 
+    const auctionMetaResult = await pool.query(
+      `SELECT a.id, a.title, a.category, a.ends_at, a.status, a.photo_urls, u.email as seller_email,
+        (SELECT COUNT(*) FROM bids b WHERE b.auction_id = a.id) as bid_count,
+        COALESCE((SELECT MAX(amount) FROM bids b WHERE b.auction_id = a.id), a.reserve_price) as current_price
+       FROM auctions a
+       JOIN users u ON a.seller_id = u.id
+       WHERE a.id = $1`,
+      [auctionId]
+    )
+
+    const updatedAuction = auctionMetaResult.rows[0] || {
+      id: auctionId,
+      current_price: bidAmount
+    }
+
     const io = req.app.get('io')
     if (io) {
-      io.to(`auction_${auctionId}`).emit('bid_placed', {
-        auctionId,
-        bid,
-        currentPrice: bidAmount
-      })
+      io.to(`auction_${auctionId}`).emit('bid_placed', updatedAuction)
+      io.emit('auction_refresh')
     }
 
     res.status(201).json(bid)

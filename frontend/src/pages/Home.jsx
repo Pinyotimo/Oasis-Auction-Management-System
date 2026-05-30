@@ -4,6 +4,7 @@ import { Search, SlidersHorizontal, Flame, Sparkles, HelpCircle, Wifi, WifiOff }
 import AuctionCard from '../components/AuctionCard'
 import Input from '../components/ui/Input'
 import api from '../lib/api'
+import { formatKES } from '../lib/currency'
 
 const SOCKET_URL = import.meta.env.VITE_WS_URL || 'http://localhost:5000'
 const PAGE_SIZE = 12
@@ -65,7 +66,6 @@ function Home() {
   // WebSocket realtime updates
   useEffect(() => {
     const socket = io(SOCKET_URL, {
-      transports: ['websocket'],
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
@@ -73,6 +73,14 @@ function Home() {
 
     socket.on('connect', () => setSocketConnected(true))
     socket.on('disconnect', () => setSocketConnected(false))
+    socket.on('connect_error', (err) => {
+      console.error('Socket connect error:', err)
+      setSocketConnected(false)
+    })
+    socket.on('reconnect_failed', () => {
+      console.error('Socket reconnect failed')
+      setSocketConnected(false)
+    })
 
     socket.on('bid_placed', updatedAuction => {
       setAuctions(prev =>
@@ -198,7 +206,7 @@ function Home() {
           { label: 'Active auctions', value: totalActive, sub: `of ${enhancedAuctions.length} total` },
           { label: 'Total bids placed', value: totalBids.toLocaleString(), sub: 'all time' },
           { label: 'Ending soon', value: totalEndingSoon, sub: 'within 24 hours' },
-          { label: 'Avg. bid value', value: `$${Math.round(avgBid).toLocaleString()}`, sub: 'current listings' },
+          { label: 'Avg. bid value', value: formatKES(Math.round(avgBid)), sub: 'current listings' },
         ].map(stat => (
           <div key={stat.label} className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4">
             <p className="text-[11px] text-gray-400 dark:text-gray-500 mb-1">{stat.label}</p>

@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
 import api from '../lib/api'
+import { formatKES } from '../lib/currency'
 
 function Profile() {
   const { user, isAuthenticated } = useAuthStore()
@@ -126,12 +127,7 @@ function Profile() {
     )
   }, [bids, getBidRealtimeStatus])
 
-  const fmt = val =>
-    new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      maximumFractionDigits: 0,
-    }).format(val || 0)
+  const fmt = formatKES
 
   const formatTime = (dateString) => {
     if (!dateString) return '—'

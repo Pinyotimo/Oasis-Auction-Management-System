@@ -4,7 +4,9 @@ import cors from 'cors'
 import dotenv from 'dotenv'
 import { createServer } from 'http'
 import { Server } from 'socket.io'
+import { createAdapter } from '@socket.io/redis-adapter'
 import { startAuctionCloser } from './jobs/auctionCloser.js'
+import { pubClient, subClient, redisAvailable } from './config/redis.js'
 
 import authRoutes from './routes/auth.js'
 import auctionRoutes from './routes/auctions.js'
@@ -21,6 +23,13 @@ const io = new Server(server, {
     credentials: true 
   }
 })
+
+if (redisAvailable) {
+  io.adapter(createAdapter(pubClient, subClient))
+  console.log('Socket.IO Redis adapter enabled')
+} else {
+  console.log('Socket.IO running without Redis adapter')
+}
 
 app.set('io', io)
 
@@ -65,7 +74,7 @@ io.on('connection', (socket) => {
   })
 })
 
-startAuctionCloser()
+startAuctionCloser(io)
 
 const PORT = process.env.PORT || 5000
 server.listen(PORT, () => {

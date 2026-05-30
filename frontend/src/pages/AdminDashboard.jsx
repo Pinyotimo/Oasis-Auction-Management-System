@@ -9,6 +9,7 @@ import Card from '../components/ui/Card'
 import Badge from '../components/ui/Badge'
 import Input from '../components/ui/Input'
 import api from '../lib/api'
+import { formatKES } from '../lib/currency'
 import { useAuthStore } from '../store/authStore'
 
 // Rejection form sub-component
@@ -75,7 +76,7 @@ function AuctionDetailModal({ auction, onClose }) {
             <div className="bg-gray-950 p-3 rounded-lg border border-gray-800">
               <p className="text-gray-500 font-bold uppercase tracking-wider mb-1">Reserve Price</p>
               <p className="text-green-400 font-bold text-lg">
-                ${parseFloat(auction.reserve_price).toLocaleString()}
+                {formatKES(parseFloat(auction.reserve_price))}
               </p>
             </div>
             <div className="bg-gray-950 p-3 rounded-lg border border-gray-800">
@@ -233,8 +234,7 @@ function AdminDashboard() {
     }
   }
 
-  const formatCurrency = (amount) =>
-    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(amount || 0)
+  const formatCurrency = formatKES
 
   const filteredUsers = users.filter(u =>
     u.email.toLowerCase().includes(userSearch.toLowerCase()) ||
